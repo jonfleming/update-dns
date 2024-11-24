@@ -5,14 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "node",
+            "name": "Launch Go file",
+            "type": "go",
             "request": "launch",
-            "name": "Launch Program",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "program": "${workspaceFolder}\\update.js",
-            "args": ["-d", "fleming.ai", "-s", "chat", "-i", "50.35.90.90"]
+            "mode": "debug",
+            "program": "update-dns.go",
+            "args": ["fleming.ai", "chat", "50.35.90.89"]
         }
     ]
 }
