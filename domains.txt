@@ -1,0 +1,13 @@
+amy.fleming.ai 
+chat.fleming.ai
+code-server.fleming.ai 
+files.fleming.ai
+notes.fleming.ai
+ollama.fleming.ai
+server.fleming.ai
+tico.fleming.ai
+webui.fleming.ai
+auth.jonfleming.net
+code-server.jonfleming.net
+.jonfleming.net
+notes.jonfleming.net
