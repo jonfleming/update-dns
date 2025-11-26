@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "update-dns.go",
-            "args": ["jonfleming.net", "chat", "50.47.202.1"]
+            "args": ["auth.jonfleming.net"]
         }
     ]
 }

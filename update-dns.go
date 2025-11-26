@@ -13,22 +13,30 @@ import (
 )
 
 // Version is the current CLI version. Update when tagging releases.
-const Version = "v1.3.0"
+const Version = "v1.3.3"
 
 func main() {
 	// If invoked without args or with -v/--version, show version + help and exit.
-	if len(os.Args) == 1 || (len(os.Args) == 2 && (os.Args[1] == "-v" || os.Args[1] == "--version")) {
+	if len(os.Args) == 1 || len(os.Args) == 2 || os.Args[1] == "-h" || os.Args[1] == "-v" || os.Args[1] == "--version" {
 		printUsage()
 		return
 	}
 
+	API_KEY := os.Getenv("CLOUDFLARE_API_KEY")
 	// Load environment variables from .env file
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file: %s", err)
+	if API_KEY == "" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatalf("Error loading .env file and CLOUDFLARE_API_KEY is not set: %s", err)
+		}
+		API_KEY = os.Getenv("CLOUDFLARE_API_KEY")
 	}
 
-	api, err := cloudflare.NewWithAPIToken(os.Getenv("CLOUDFLARE_API_KEY"))
+	if API_KEY == "" {
+		log.Fatalf("CLOUDFLARE_API_KEY environment variable is not set")
+	}
+
+	api, err := cloudflare.NewWithAPIToken(API_KEY)
 	if err != nil {
 		log.Fatalf("Error connecting to Cloudflare: %s", err)
 	}
@@ -79,16 +87,23 @@ func main() {
 }
 
 func printUsage() {
+	// Strip the path from the executable name for clarity.
+	exename := os.Args[0]
+
+	if idx := strings.LastIndex(exename, string(os.PathSeparator)); idx != -1 {
+		exename = exename[idx+1:]
+	}
+
 	fmt.Printf("update-dns %s\n\n", Version)
 	fmt.Println("Usage:")
-	fmt.Printf("  Batch mode:  %s <domains_file> <ip>\n", os.Args[0])
-	fmt.Printf("  Single mode: %s <domain-or-fqdn> <ip>\n", os.Args[0])
-	fmt.Printf("  Legacy:      %s <domain> <subdomain> <ip>\n", os.Args[0])
+	fmt.Printf("  Batch mode:  %s <domains_file> <ip>\n", exename)
+	fmt.Printf("  Single mode: %s <domain-or-fqdn> <ip>\n", exename)
+	fmt.Printf("  Legacy:      %s <domain> <subdomain> <ip>\n", exename)
 	fmt.Println("\nExamples:")
-	fmt.Printf("  %s domains.txt 192.168.1.100\n", os.Args[0])
-	fmt.Printf("  %s example.com 192.168.1.100     (updates base domain)\n", os.Args[0])
-	fmt.Printf("  %s www.example.com 192.168.1.100 (updates subdomain)\n", os.Args[0])
-	fmt.Printf("  %s .example.com 192.168.1.100    (legacy: leading dot = base domain)\n", os.Args[0])
+	fmt.Printf("  %s domains.txt 192.168.1.100\n", exename)
+	fmt.Printf("  %s example.com 192.168.1.100     (updates base domain)\n", exename)
+	fmt.Printf("  %s www.example.com 192.168.1.100 (updates subdomain)\n", exename)
+	fmt.Printf("  %s .example.com 192.168.1.100    (legacy: leading dot = base domain)\n", exename)
 }
 
 // resolveZoneAndSubdomain attempts to determine the Cloudflare zone (base domain)
