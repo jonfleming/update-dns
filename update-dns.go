@@ -12,7 +12,16 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Version is the current CLI version. Update when tagging releases.
+const Version = "v1.3.0"
+
 func main() {
+	// If invoked without args or with -v/--version, show version + help and exit.
+	if len(os.Args) == 1 || (len(os.Args) == 2 && (os.Args[1] == "-v" || os.Args[1] == "--version")) {
+		printUsage()
+		return
+	}
+
 	// Load environment variables from .env file
 	err := godotenv.Load()
 	if err != nil {
@@ -65,6 +74,12 @@ func main() {
 		return
 	}
 
+	printUsage()
+	os.Exit(1)
+}
+
+func printUsage() {
+	fmt.Printf("update-dns %s\n\n", Version)
 	fmt.Println("Usage:")
 	fmt.Printf("  Batch mode:  %s <domains_file> <ip>\n", os.Args[0])
 	fmt.Printf("  Single mode: %s <domain-or-fqdn> <ip>\n", os.Args[0])
@@ -74,7 +89,6 @@ func main() {
 	fmt.Printf("  %s example.com 192.168.1.100     (updates base domain)\n", os.Args[0])
 	fmt.Printf("  %s www.example.com 192.168.1.100 (updates subdomain)\n", os.Args[0])
 	fmt.Printf("  %s .example.com 192.168.1.100    (legacy: leading dot = base domain)\n", os.Args[0])
-	os.Exit(1)
 }
 
 // resolveZoneAndSubdomain attempts to determine the Cloudflare zone (base domain)
