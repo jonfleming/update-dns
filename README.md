@@ -10,23 +10,22 @@ This Go program updates DNS records using the Cloudflare API. It supports both s
 
 ## Usage
 
-The program supports two modes of operation:
+The program supports three ways to invoke updates. The preferred form is a single domain/FQDN plus IP. The first argument may also be a path to a domains file for batch updates. Legacy three-argument form is still supported.
 
-### Single Domain Mode
-
-Update a single DNS record:
+1) Preferred single FQDN form (recommended): resolve zone automatically
 
 ```bash
-update-dns <domain> <subdomain> <new-ip>
+update-dns <domain-or-fqdn> <new-ip>
 ```
 
-- `<domain>`: The domain name (e.g., example.com).
-- `<subdomain>`: The subdomain to update (e.g., www). Use `@` for the base domain.
+- `<domain-or-fqdn>`: A fully-qualified domain name such as `www.example.com`, `example.com`, or a path to a domains file (see batch mode below). If a file with this name exists, it will be treated as a domains file.
 - `<new-ip>`: The new IP address for the DNS record.
 
-### Batch Mode
+Behavior:
+- If the first argument is a file path, the program runs in batch mode and treats the file as a list of domains to update.
+- If the first argument is a FQDN, the program will automatically determine the Cloudflare zone by trying candidates from left-to-right (e.g., `www.sub.example.com` → tries `www.sub.example.com`, `sub.example.com`, `example.com`), using the first matching zone. The portion left of the found zone becomes the record name (or `@` for the apex/root).
 
-Update multiple DNS records from a file:
+2) Batch mode (explicit file):
 
 ```bash
 update-dns <domains-file> <new-ip>
@@ -35,19 +34,29 @@ update-dns <domains-file> <new-ip>
 - `<domains-file>`: Path to a text file containing domain/subdomain entries (one per line).
 - `<new-ip>`: The new IP address for all DNS records.
 
+3) Legacy form (still supported):
+
+```bash
+update-dns <domain> <subdomain> <new-ip>
+```
+
+- `<domain>`: The zone (e.g., `example.com`).
+- `<subdomain>`: The record name to update (`www` or `@` for the root).
+- `<new-ip>`: The new IP address.
+
 #### Domains File Format
 
-The domains file should contain one domain/subdomain per line:
+The domains file should contain one domain/subdomain per line. Examples:
 
 ```
-subdomain.example.com
 www.example.com
 api.example.com
+mail.subdomain.example.com
 .example.com
 ```
 
-- Regular entries like `subdomain.domain.com` update the subdomain A record
-- Entries starting with `.` (like `.example.com`) update the base domain A record
+- Regular entries like `subdomain.domain.com` update that subdomain's A record.
+- Entries starting with `.` (like `.example.com`) explicitly indicate the base/apex domain record should be updated.
 
 ## How It Works
 

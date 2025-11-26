@@ -24,28 +24,83 @@ func main() {
 		log.Fatalf("Error connecting to Cloudflare: %s", err)
 	}
 
-	// Check for batch mode (file + IP) or single domain mode
+	// Accept either: batch file or single domain in a simpler form.
+	// New preferred single-domain usage: update-dns <domain-or-fqdn> <ip>
 	if len(os.Args) == 3 {
-		// Batch mode: update-dns.exe <domains_file> <ip>
-		domainsFile := os.Args[1]
+		arg := os.Args[1]
 		ip := os.Args[2]
-		processBatch(api, domainsFile, ip)
+
+		// If the first arg is an existing file, treat as batch mode.
+		if fi, err := os.Stat(arg); err == nil && !fi.IsDir() {
+			processBatch(api, arg, ip)
+			return
+		}
+
+		// Single domain mode (preferred): resolve zone and subdomain from FQDN.
+		if strings.HasPrefix(arg, ".") {
+			// Leading dot indicates base domain (legacy style)
+			domain := arg[1:]
+			if err := updateSingleDomain(api, domain, "@", ip); err != nil {
+				log.Fatalf("Error updating %s: %s", arg, err)
+			}
+			return
+		}
+
+		domain, subdomain, err := resolveZoneAndSubdomain(api, arg)
+		if err != nil {
+			log.Fatalf("Error resolving domain '%s': %s", arg, err)
+		}
+		if err := updateSingleDomain(api, domain, subdomain, ip); err != nil {
+			log.Fatalf("Error updating %s: %s", arg, err)
+		}
+		return
 	} else if len(os.Args) == 4 {
-		// Single domain mode: update-dns.exe <domain> <subdomain> <ip>
+		// Legacy single domain mode: update-dns.exe <domain> <subdomain> <ip>
 		domain := os.Args[1]
 		subdomain := os.Args[2]
 		ip := os.Args[3]
-		updateSingleDomain(api, domain, subdomain, ip)
-	} else {
-		fmt.Println("Usage:")
-		fmt.Printf("  Batch mode:  %s <domains_file> <ip>\n", os.Args[0])
-		fmt.Printf("  Single mode: %s <domain> <subdomain> <ip>\n", os.Args[0])
-		fmt.Println("\nExamples:")
-		fmt.Printf("  %s domains.txt 192.168.1.100\n", os.Args[0])
-		fmt.Printf("  %s example.com www 192.168.1.100\n", os.Args[0])
-		fmt.Printf("  %s example.com @ 192.168.1.100  (for base domain)\n", os.Args[0])
-		os.Exit(1)
+		if err := updateSingleDomain(api, domain, subdomain, ip); err != nil {
+			log.Fatalf("Error updating %s.%s: %s", subdomain, domain, err)
+		}
+		return
 	}
+
+	fmt.Println("Usage:")
+	fmt.Printf("  Batch mode:  %s <domains_file> <ip>\n", os.Args[0])
+	fmt.Printf("  Single mode: %s <domain-or-fqdn> <ip>\n", os.Args[0])
+	fmt.Printf("  Legacy:      %s <domain> <subdomain> <ip>\n", os.Args[0])
+	fmt.Println("\nExamples:")
+	fmt.Printf("  %s domains.txt 192.168.1.100\n", os.Args[0])
+	fmt.Printf("  %s example.com 192.168.1.100     (updates base domain)\n", os.Args[0])
+	fmt.Printf("  %s www.example.com 192.168.1.100 (updates subdomain)\n", os.Args[0])
+	fmt.Printf("  %s .example.com 192.168.1.100    (legacy: leading dot = base domain)\n", os.Args[0])
+	os.Exit(1)
+}
+
+// resolveZoneAndSubdomain attempts to determine the Cloudflare zone (base domain)
+// and the subdomain (or "@" for root) from a provided FQDN by probing
+// `api.ZoneIDByName` from left-to-right. For example, given "www.sub.example.com"
+// it will try "www.sub.example.com", then "sub.example.com", then
+// "example.com" until a zone is found.
+func resolveZoneAndSubdomain(api *cloudflare.API, fqdn string) (string, string, error) {
+	fqdn = strings.TrimSpace(fqdn)
+	if fqdn == "" {
+		return "", "", fmt.Errorf("empty domain")
+	}
+
+	parts := strings.Split(fqdn, ".")
+	for i := 0; i < len(parts); i++ {
+		candidate := strings.Join(parts[i:], ".")
+		if _, err := api.ZoneIDByName(candidate); err == nil {
+			// candidate is the zone; subdomain is whatever is left of it
+			if i == 0 {
+				return candidate, "@", nil
+			}
+			sub := strings.Join(parts[:i], ".")
+			return candidate, sub, nil
+		}
+	}
+	return "", "", fmt.Errorf("no Cloudflare zone found for '%s'", fqdn)
 }
 
 func processBatch(api *cloudflare.API, domainsFile, ip string) {
