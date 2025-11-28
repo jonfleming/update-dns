@@ -253,5 +253,6 @@ func updateSingleDomain(api *cloudflare.API, domain, subdomain, ip string) error
 	}
 
 	fmt.Printf("Updated IP address from %s to %s\n", oldIP, ip)
+	fmt.Printf("****** REMEMBER TO UPDATE CADDY*****\n")
 	return nil
 }
